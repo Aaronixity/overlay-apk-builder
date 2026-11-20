@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
@@ -82,10 +83,15 @@ public class MainActivity extends Activity {
     private View buildViewFromCode() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(32, 32, 32, 32);
+        root.setGravity(Gravity.CENTER);
+        root.setPadding(36, 36, 36, 36);
+        root.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.MATCH_PARENT
+        ));
 
         TextView label = new TextView(this);
-        label.setText("Overlay (" + OverlayConfig.ACCENT_HEX + ")");
+        label.setText("Full-Screen Overlay (" + OverlayConfig.ACCENT_HEX + ")");
         root.addView(label);
 
         final EditText phraseInput = new EditText(this);
@@ -130,14 +136,23 @@ public class MainActivity extends Activity {
                 ? OverlayConfig.OVERLAY_TYPE_26_PLUS
                 : OverlayConfig.LEGACY_WINDOW_TYPE;
 
+            int combinedFlags = OverlayConfig.EXTRA_FLAGS
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
                 windowType,
-                OverlayConfig.EXTRA_FLAGS,
+                combinedFlags,
                 PixelFormat.TRANSLUCENT
             );
             params.gravity = OverlayConfig.GRAVITY;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                params.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
 
             if (overlayView.getParent() == null) {
                 wm.addView(overlayView, params);
