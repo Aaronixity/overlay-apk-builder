@@ -44,7 +44,7 @@ public class MainActivity extends Activity {
             acquireWakeLockIfEnabled();
             showOverlay();
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Init err: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
                 km.requestDismissKeyguard(this, null);
             }
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Keyguard err: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
                 }
             }
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "WakeLock err: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -158,33 +158,69 @@ public class MainActivity extends Activity {
                 wm.addView(overlayView, params);
             }
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Show err: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     private void checkPhraseAndDestroy(String enteredPhrase) {
         try {
-            if (enteredPhrase != null && enteredPhrase.trim().equals(OverlayConfig.DESTROY_PHRASE.trim())) {
+            String actual = (enteredPhrase == null) ? "" : enteredPhrase.trim();
+            String expected = (OverlayConfig.DESTROY_PHRASE == null) ? "" : OverlayConfig.DESTROY_PHRASE.trim();
+
+            if (actual.equals(expected)) {
+                Toast.makeText(getApplicationContext(), "Phrase matched! Destroying...", Toast.LENGTH_SHORT).show();
                 destroyOverlay();
             } else {
-                Toast.makeText(getApplicationContext(), "Phrase did not match", Toast.LENGTH_SHORT).show();
+                Toast.makeText(
+                    getApplicationContext(),
+                    "No match. Expected: [" + expected + "] Got: [" + actual + "]",
+                    Toast.LENGTH_LONG
+                ).show();
             }
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Check err: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     private void destroyOverlay() {
         try {
-            if (overlayView != null && overlayView.getParent() != null) {
-                wm.removeView(overlayView);
+            if (wm != null && overlayView != null) {
+                try {
+                    if (overlayView.getWindowToken() != null || overlayView.getParent() != null) {
+                        wm.removeViewImmediate(overlayView);
+                    }
+                } catch (Exception inner) {
+                    wm.removeView(overlayView);
+                }
                 overlayView = null;
             }
             if (wakeLock != null && wakeLock.isHeld()) {
                 wakeLock.release();
+                wakeLock = null;
             }
+            finish();
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Destroy err: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            if (wm != null && overlayView != null) {
+                try {
+                    wm.removeViewImmediate(overlayView);
+                } catch (Exception ignored) {
+                    wm.removeView(overlayView);
+                }
+                overlayView = null;
+            }
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        } catch (Exception ignored) {
         }
     }
 }
