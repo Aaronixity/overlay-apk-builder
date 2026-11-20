@@ -101,7 +101,7 @@ jobs:
           wl_level = kv.get("wl_level", "PARTIAL_WAKE_LOCK")
           keyguard = kv.get("kg", "0") == "1"
           kg_mode = kv.get("kg_mode", "DISMISS")
-          destroy_phrase = kv.get("destroy", "destroy overlay").replace('"', '\\"')
+          destroy_phrase = kv.get("destroy", "destroy overlay").replace("\\", "\\\\").replace('"', '\\"')
           safe_app_name = app_name.replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
 
           gradle_path = Path("app/build.gradle")
@@ -134,12 +134,12 @@ jobs:
           values_dir.mkdir(parents=True, exist_ok=True)
           (values_dir / "overlay_generated.xml").write_text(
               f"""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">{safe_app_name}</string>
-    <color name="overlay_accent">{accent_hex}</color>
-    <string name="overlay_theme_mode">{theme_mode}</string>
-</resources>
-""",
+          <resources>
+              <string name="app_name">{safe_app_name}</string>
+              <color name="overlay_accent">{accent_hex}</color>
+              <string name="overlay_theme_mode">{theme_mode}</string>
+          </resources>
+          """,
               encoding="utf-8",
           )
 
@@ -156,31 +156,29 @@ jobs:
 
           java_dir = Path("app/src/main/java/com/example/overlay")
           java_dir.mkdir(parents=True, exist_ok=True)
-          (java_dir / "OverlayConfig.java").write_text(
-              f"""package com.example.overlay;
-
-public class OverlayConfig {{
-    public static final String THEME_MODE = "{theme_mode}";
-    public static final String ACCENT_HEX = "{accent_hex}";
-    public static final String XML_MODE = "{xml_mode}";
-    public static final int LEGACY_WINDOW_TYPE = android.view.WindowManager.LayoutParams.{legacy_type};
-    public static final int GRAVITY = {gravity_expr};
-    public static final int EXTRA_FLAGS = {flags_expr};
-    public static final float ALPHA = {alpha_val}f;
-    public static final boolean SHOW_CLOSE_BTN = {str(close_btn).lower()};
-    public static final boolean DRAGGABLE = {str(draggable).lower()};
-    public static final boolean AUTO_START = {str(auto_start).lower()};
-    public static final boolean VIBRATE = {str(vibrate).lower()};
-    public static final boolean WAKE_LOCK_ENABLED = {str(wake_lock).lower()};
-    public static final int WAKE_LOCK_FLAG = android.os.PowerManager.{wl_level};
-    public static final boolean KEYGUARD_ENABLED = {str(keyguard).lower()};
-    public static final String KEYGUARD_MODE = "{kg_mode}";
-    public static final String DESTROY_PHRASE = "{destroy_phrase}";
-}}
-""",
-              encoding="utf-8",
+          config_java = (
+              "package com.example.overlay;\n\n"
+              "public class OverlayConfig {\n"
+              f'    public static final String THEME_MODE = "{theme_mode}";\n'
+              f'    public static final String ACCENT_HEX = "{accent_hex}";\n'
+              f'    public static final String XML_MODE = "{xml_mode}";\n'
+              f"    public static final int LEGACY_WINDOW_TYPE = android.view.WindowManager.LayoutParams.{legacy_type};\n"
+              f"    public static final int GRAVITY = {gravity_expr};\n"
+              f"    public static final int EXTRA_FLAGS = {flags_expr};\n"
+              f"    public static final float ALPHA = {alpha_val}f;\n"
+              f"    public static final boolean SHOW_CLOSE_BTN = {str(close_btn).lower()};\n"
+              f"    public static final boolean DRAGGABLE = {str(draggable).lower()};\n"
+              f"    public static final boolean AUTO_START = {str(auto_start).lower()};\n"
+              f"    public static final boolean VIBRATE = {str(vibrate).lower()};\n"
+              f"    public static final boolean WAKE_LOCK_ENABLED = {str(wake_lock).lower()};\n"
+              f"    public static final int WAKE_LOCK_FLAG = android.os.PowerManager.{wl_level};\n"
+              f"    public static final boolean KEYGUARD_ENABLED = {str(keyguard).lower()};\n"
+              f'    public static final String KEYGUARD_MODE = "{kg_mode}";\n'
+              f'    public static final String DESTROY_PHRASE = "{destroy_phrase}";\n'
+              "}\n"
           )
-EOF
+          (java_dir / "OverlayConfig.java").write_text(config_java, encoding="utf-8")
+          EOF
         env:
           INPUT_THEME_MODE: ${{ inputs.theme_mode }}
           INPUT_ACCENT_HEX: ${{ inputs.accent_hex }}
