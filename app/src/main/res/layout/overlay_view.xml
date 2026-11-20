@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="#DD1E88E5"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/overlay_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Example Text"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+
+    <EditText
+        android:id="@+id/destroy_phrase_input"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:hint="Enter Password"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#CCFFFFFF" />
+
+    <Button
+        android:id="@+id/check_destroy_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Unlock Device" />
+
+</LinearLayout>
