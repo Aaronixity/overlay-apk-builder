@@ -15,10 +15,6 @@ on:
         description: "Android app name"
         required: true
         default: "Test Overlay"
-      icon_mode:
-        description: "default, none, or custom"
-        required: true
-        default: "default"
       xml_mode:
         description: "default_xml, custom_xml, or from_code"
         required: true
@@ -35,6 +31,10 @@ on:
         description: "targetSdkVersion"
         required: true
         default: "34"
+      overlay_type_26plus:
+        description: "API 26+ overlay type"
+        required: true
+        default: "TYPE_APPLICATION_OVERLAY"
       legacy_type:
         description: "TYPE_PHONE or TYPE_SYSTEM_ERROR"
         required: true
@@ -42,7 +42,7 @@ on:
       extra_cfg:
         description: "Semicolon key=val flags"
         required: false
-        default: "alpha=1.0;gravity=CENTER;flags=FLAG_NOT_FOCUSABLE;close=1;drag=1;auto=0;vib=0;wakelock=0;wl_level=PARTIAL_WAKE_LOCK;kg=0;kg_mode=DISMISS;destroy=destroy overlay;sign=debug_sign"
+        default: "icon=default;alpha=1.0;gravity=CENTER;flags=FLAG_NOT_FOCUSABLE;close=1;drag=1;auto=0;vib=0;wakelock=0;wl_level=PARTIAL_WAKE_LOCK;kg=0;kg_mode=DISMISS;destroy=destroy overlay;sign=debug_sign"
 
 jobs:
   build:
@@ -59,19 +59,19 @@ jobs:
       - name: Apply Config to Android Project
         run: |
           python3 - << 'EOF'
-          import base64
           import os
           import re
+          import base64
           from pathlib import Path
 
           theme_mode = os.environ.get("INPUT_THEME_MODE", "system")
           accent_hex = os.environ.get("INPUT_ACCENT_HEX", "#1E88E5")
           app_name = os.environ.get("INPUT_APP_NAME", "Test Overlay")
-          icon_mode = os.environ.get("INPUT_ICON_MODE", "default")
           xml_mode = os.environ.get("INPUT_XML_MODE", "default_xml")
           custom_xml_b64 = os.environ.get("INPUT_CUSTOM_XML_B64", "")
           min_sdk = os.environ.get("INPUT_MIN_SDK", "21")
           target_sdk = os.environ.get("INPUT_TARGET_SDK", "34")
+          overlay_type_26plus = os.environ.get("INPUT_OVERLAY_TYPE_26PLUS", "TYPE_APPLICATION_OVERLAY")
           legacy_type = os.environ.get("INPUT_LEGACY_TYPE", "TYPE_PHONE")
           extra_raw = os.environ.get("INPUT_EXTRA_CFG", "")
 
@@ -81,6 +81,7 @@ jobs:
                   k, v = part.split("=", 1)
                   kv[k.strip()] = v.strip()
 
+          icon_mode = kv.get("icon", "default")
           alpha_val = kv.get("alpha", "1.0")
           gravity_expr = " | ".join(
               f"android.view.Gravity.{g.strip()}"
@@ -133,13 +134,12 @@ jobs:
           values_dir = Path("app/src/main/res/values")
           values_dir.mkdir(parents=True, exist_ok=True)
           (values_dir / "overlay_generated.xml").write_text(
-              f"""<?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">{safe_app_name}</string>
-              <color name="overlay_accent">{accent_hex}</color>
-              <string name="overlay_theme_mode">{theme_mode}</string>
-          </resources>
-          """,
+              '<?xml version="1.0" encoding="utf-8"?>\n'
+              "<resources>\n"
+              f'    <string name="app_name">{safe_app_name}</string>\n'
+              f'    <color name="overlay_accent">{accent_hex}</color>\n'
+              f'    <string name="overlay_theme_mode">{theme_mode}</string>\n'
+              "</resources>\n",
               encoding="utf-8",
           )
 
@@ -151,8 +151,7 @@ jobs:
           layout_dir = Path("app/src/main/res/layout")
           layout_dir.mkdir(parents=True, exist_ok=True)
           if xml_mode == "custom_xml" and custom_xml_b64:
-              xml_bytes = base64.b64decode(custom_xml_b64)
-              (layout_dir / "overlay_view.xml").write_bytes(xml_bytes)
+              (layout_dir / "overlay_view.xml").write_bytes(base64.b64decode(custom_xml_b64))
 
           java_dir = Path("app/src/main/java/com/example/overlay")
           java_dir.mkdir(parents=True, exist_ok=True)
@@ -162,6 +161,7 @@ jobs:
               f'    public static final String THEME_MODE = "{theme_mode}";\n'
               f'    public static final String ACCENT_HEX = "{accent_hex}";\n'
               f'    public static final String XML_MODE = "{xml_mode}";\n'
+              f"    public static final int OVERLAY_TYPE_26_PLUS = android.view.WindowManager.LayoutParams.{overlay_type_26plus};\n"
               f"    public static final int LEGACY_WINDOW_TYPE = android.view.WindowManager.LayoutParams.{legacy_type};\n"
               f"    public static final int GRAVITY = {gravity_expr};\n"
               f"    public static final int EXTRA_FLAGS = {flags_expr};\n"
@@ -183,19 +183,47 @@ jobs:
           INPUT_THEME_MODE: ${{ inputs.theme_mode }}
           INPUT_ACCENT_HEX: ${{ inputs.accent_hex }}
           INPUT_APP_NAME: ${{ inputs.app_name }}
-          INPUT_ICON_MODE: ${{ inputs.icon_mode }}
           INPUT_XML_MODE: ${{ inputs.xml_mode }}
           INPUT_CUSTOM_XML_B64: ${{ inputs.custom_xml_b64 }}
           INPUT_MIN_SDK: ${{ inputs.min_sdk }}
           INPUT_TARGET_SDK: ${{ inputs.target_sdk }}
+          INPUT_OVERLAY_TYPE_26PLUS: ${{ inputs.overlay_type_26plus }}
           INPUT_LEGACY_TYPE: ${{ inputs.legacy_type }}
           INPUT_EXTRA_CFG: ${{ inputs.extra_cfg }}
 
       - name: Build APK
         run: chmod +x ./gradlew && ./gradlew assembleDebug
 
+      - name: Apply Signing Mode
+        run: |
+          python3 - << 'EOF'
+          import os
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          extra_raw = os.environ.get("INPUT_EXTRA_CFG", "")
+          kv = {}
+          for part in extra_raw.split(";"):
+              if "=" in part:
+                  k, v = part.split("=", 1)
+                  kv[k.strip()] = v.strip()
+
+          sign_mode = kv.get("sign", "debug_sign")
+          apk_src = Path("app/build/outputs/apk/debug/app-debug.apk")
+          out_dir = Path("build_out")
+          out_dir.mkdir(exist_ok=True)
+          apk_dst = out_dir / "final-overlay.apk"
+          shutil.copy2(apk_src, apk_dst)
+
+          if sign_mode == "unsigned":
+              subprocess.run(["zip", "-d", str(apk_dst), "META-INF/*"], check=False)
+          EOF
+        env:
+          INPUT_EXTRA_CFG: ${{ inputs.extra_cfg }}
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: overlay-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: build_out/final-overlay.apk
