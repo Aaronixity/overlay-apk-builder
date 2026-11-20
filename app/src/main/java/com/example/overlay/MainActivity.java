@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
             }
 
             int windowType = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                ? OverlayConfig.OVERLAY_TYPE_26_PLUS
                 : OverlayConfig.LEGACY_WINDOW_TYPE;
 
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
